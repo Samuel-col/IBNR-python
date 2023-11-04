@@ -34,10 +34,21 @@ tr
 
 tr.formato_largo()
 
-## grafico
+# Aplicar función
+import numpy as np
+tr.apply(np.log) #logaritmo natural
+tr.apply(lambda x: 2*x) # duplicar
 
+# exportar a excel
+type(tr)
+type(tr.to_DataFrame())
+tr.to_excel('triangulo_simulado.xlsx')
+tr.to_excel('triangulo_simulado.xlsx',startrow = 3)
+
+## grafico
 tr.heat_plot()
 tr.line_plot()
+tr.acumular().line_plot()
 
 
 # Chain ladder
@@ -48,16 +59,17 @@ tr.factores_desarrollo()
 
 tr.fill()
 tr.fill().line_plot()
+tr.fill().to_excel('triangulo_lleno.xlsx')
 
 tr.totales_año_siniestro()
-
-tr.fit()
-tr.fit().heat_plot()
 
 
 # Métodos estocásticos
 
 ## Residuales
+res_tr = tr.residuales(retornar_triangulo=True)
+res_tr.heat_plot()
+res_tr.line_plot()
 res = tr.residuales()
 res
 
@@ -69,9 +81,24 @@ plt.title('Estimación de la función de densidad de los residuales')
 plt.ylabel('Densidad')
 plt.show()
 
+plt.plot(res)
+plt.show()
+
 
 ## Bootstrap
 
+
+samps = tr.bootstrap(n_reps=500,retornar_muestras=True)
+import numpy as np
+np.vstack((np.mean(samps,axis = 0),
+tr.totales_año_siniestro(retornar_series=False))).T
+
+
+
+tr.bootstrap(n_reps=500)
+tr.bootstrap(n_reps=500,suavizado=True)
+tr.bootstrap(n_reps=500,parametric=True)
+tr.bootstrap(n_reps=500,parametric=True,parametric_distribution='t')
 
 ## Mack
 
