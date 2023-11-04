@@ -7,9 +7,12 @@ import plotnine as p9
 import copy as cp
 import scipy.stats as st
 
-class Triangulo:
+class Triangulo: # https://alejandria.poligran.edu.co/bitstream/handle/10823/651/METODOLOGIAS%20DE%20CALCULO%20DE.....%20%28IBNR%29.pdf?sequence=2&isAllowed=y
 
-    # Creación
+    # --------------------------------------------------------
+    # Creación -----------------------------------------------
+    # --------------------------------------------------------
+
     def __init__(self,df,col_f_siniestro,
                 col_f_desarrollo,col_valor = None):
 
@@ -41,6 +44,10 @@ class Triangulo:
         self.años_desarrollo = list(tab.columns)
         self.array = np.array(tab)
     
+    # --------------------------------------------------------
+    # Funciones internas -------------------------------------
+    # --------------------------------------------------------
+
     # Visualización
     def __str__(self):
         return self.df.__str__()
@@ -81,10 +88,32 @@ class Triangulo:
         indices = (np.array(indices_r),np.array(indices_c))
         return indices
 
+    # --------------------------------------------------------
+    # Utilidades generales -----------------------------------
+    # --------------------------------------------------------
+
     # Formato tabla
     def formato_largo(self):
         return self.df.stack().reset_index().rename(columns = {0 : self.tipo})
     
+    # Exportar a excel
+    def to_excel(self,file_name,sheet_name = 'Hoja1',**kwargs):
+        self.df.to_excel(file_name,sheet_name=sheet_name,
+                         **kwargs)
+    
+    # Convertir a dataframe
+    def to_DataFrame(self):
+        return self.df
+
+    # Aplicar función a las entradas del triangulo
+    def apply(self,f,limpiar_tri_inferior = True):
+        S = cp.deepcopy(self)
+        S.array = f(S.array)
+        S.__update_df()
+        if limpiar_tri_inferior:
+            S.__limpiar_tri_inf()
+        return S
+
     # Gráficos
     def heat_plot(self,titulo = "Triángulo de Siniestros",separacion = 0.05):
         return p9.ggplot(self.formato_largo()) + p9.aes(
@@ -122,102 +151,122 @@ class Triangulo:
             t.__limpiar_tri_inf()
         return t
 
+    # --------------------------------------------------------
+    # Chain-Ladder y Mack ------------------------------------
+    # --------------------------------------------------------
+
     # Factores de desarrollo: https://actuaries.asn.au/Library/accomp04papergerigk.pdf
     def factores_desarrollo(self):
-        t_accu = self.acumular()
-        a = t_accu.array
+        C = self.acumular()
+        a = C.array
         n, m = a.shape
         factores = [np.sum(a[:(n-i),i])/np.sum(a[:(n-i),i-1]) for i in range(1,m)]
         return factores
     
-    # Varianzas: https://actuaries.asn.au/Library/accomp04papergerigk.pdf
-    def __varianzas(self):
+    # Varianzas: 
+    # * Gerigk: https://actuaries.asn.au/Library/accomp04papergerigk.pdf
+    # * MatLab: https://www.mathworks.com/help/risk/bootstrap-using-chain-ladder-method.html
+    # * Mack: https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=c449e39e64fd29b9aac7dd9266b841aa7ebc17ac
+    def varianzas(self):
         factores = self.factores_desarrollo()
-        t_accu = self.acumular()
-        a = t_accu.array
+        C = self.acumular()
+        a = C.array
         n, m = a.shape
-        sigmas = [np.sum((a[:(n-i),i-1]*(a[:(n-i),i]/a[:(n-i),i-1]) - factores[i-1])**2)/(n-i) for i in range(1,m)]
+        sigmas = [np.sum(a[:(n-k-1),k]*(a[:(n-k-1),k+1]/a[:(n-k-1),k] - factores[k])**2)/(n-k-2) for k in range(m-1)]
+        # sigmas += [min(sigmas[m-3]**2/sigmas[m-4], sigmas[m-3], sigmas[m-4])]
         return sigmas
 
     # Llenar triangulo
     def fill(self):
         factores = self.factores_desarrollo()
-        S = self.acumular()
-        n, m = S.array.shape
+        C = self.acumular()
+        n, m = C.array.shape
         for i in range(1,m):
-            S.array[(n-i):,i] = factores[i-1]*S.array[(n-i):,i-1]
-        S.__update_df()
-        return S.desacumular(limpiar_tri_inferior = False)
+            C.array[(n-i):,i] = factores[i-1]*C.array[(n-i):,i-1]
+        C.__update_df()
+        return C.desacumular(limpiar_tri_inferior = False)
     
-    def totales_año_siniestro(self,return_series = True):
+    # Totales
+    def totales_año_siniestro(self,retornar_series = True):
         S_filled = self.fill().array
         tots = np.sum(S_filled,axis = 1)
-        if return_series:
+        if retornar_series:
             indice = pd.Index(self.años_siniestro, 
                               dtype = np.int32, 
                               name = 'Año Siniestro')
-            return pd.Series(tots,index = indice)
+            return pd.Series(tots,index = indice,name = self.tipo)
         else:
             return tots
-
-    # Ajustar triangulo
-    def fit(self): 
-        factores = self.factores_desarrollo()
-        S = self.fill().acumular()
-        n, m = S.array.shape
-        for i in range(m-1):
-            S.array[:(n-i-1),i] = S.array[:(n-i-1),i+1]/factores[i]
-        S = S.desacumular()
-        S.__update_df()
-        return S
-
-    # Extraer residuales
-    def residuales(self):
-        # Ajustar Chain Ladder
-        S_fit = self.fit()
-        # indexar observaciones estimadas
-        indices = self.__indexar_observado(diagonal=False)
-        # Extrar observado y predicho
-        s_vals = self.array[indices]
-        s_fits = S_fit.array[indices]
-        # Calcular residuales
-        res = (s_vals - s_fits)/np.sqrt(s_fits)
-        return res
-
-    # Bootstrap
-    def bootstrap(self,n_reps = 5000,parametric = False,
-                  parametric_distribution = 'Normal',
-                  smoothed = True, alpha = 0.05,
-                  ancho_barra = 50,seed = 1):
         
+    # Mack: https://actuaries.asn.au/Library/accomp04papergerigk.pdf
+    def mack(self,alpha = 0.05): # PENDIENTE
+        return 0
+    
+    # --------------------------------------------------------
+    # Bootstrap ----------------------------------------------
+    # --------------------------------------------------------
+
+    # Residuales
+    def residuales(self,retornar_triangulo = False):
+        # Variables necesarias
+        n, m = self.array.shape
+        factores = self.factores_desarrollo()
+        sigmas2 = self.varianzas()
+        indices = self.__indexar_observado(diagonal = False)
+        C = self.acumular()
+        e_tri = np.zeros((n,m-1))
+        # Calcular residuales
+        for i in range(1,m):
+            j = m - i
+            e_tri[:(n-j),j-1] = (C.array[:(n-j),j] - C.array[:(n-j),j-1]*factores[j-1])/(np.sqrt(C.array[:(n-j),j-1]*sigmas2[j-1]))
+        # Extraer residuales
+        if retornar_triangulo:
+            e_triangulo = cp.deepcopy(self)
+            e_triangulo.array = e_tri
+            e_triangulo.años_desarrollo = self.años_desarrollo[1:]
+            e_triangulo.__update_df()
+            return e_triangulo
+        else:
+            return e_tri[indices]
+
+
+    # Bootstrap: https://www.mathworks.com/help/risk/bootstrap-using-chain-ladder-method.html
+    def bootstrap(self,n_reps = 5000,parametrico = False,
+                  distribucion_parametrica = 'Normal',
+                  suavizado = True, alpha = 0.05,
+                  ancho_barra = 50,seed = 1,
+                  retornar_muestras = False):
+        
+        n, m = self.array.shape
         # Ajustar triángulo
-        S_fitted = self.fit()
+        factores = self.factores_desarrollo()
+        sigmas2 = self.varianzas()
 
         # Extraer residuales
         residuales = self.residuales()
         n_res = len(residuales)
 
         # Indexar observado
-        indices_observado = self.__indexar_observado()
+        indices_observado = self.__indexar_observado(diagonal=False)
 
         # Crear muestreador
-        if parametric:
+        if parametrico:
             res_mean, res_std = np.mean(residuales), np.std(residuales,ddof = 1)
-            if parametric_distribution == 'Normal': # Bootstrap paramétrico normal
+            if distribucion_parametrica == 'Normal': # Bootstrap paramétrico normal
                 def sampler():
                     return st.norm.rvs(loc = res_mean, scale = res_std, size = n_res)
-            elif parametric_distribution == 't': # Bootstrap parametrico t
+            elif distribucion_parametrica == 't': # Bootstrap parametrico t
                 def sampler():
                     return st.t.rvs(df = n_res - 1, size = n_res)*res_std + res_mean
             else:
                 print('Sólo se soportan las distribuciones Normal y t.')
                 ValueError
         else:
-            if smoothed: # Bootstrap no paramétrico suavizado
+            if suavizado: # Bootstrap no paramétrico suavizado: https://www.math.wustl.edu/~kuffner/AlastairYoung/DeAngelisYoung1992b.pdf
                 def sampler():
-                    smooth_degree = (np.max(residuales) - np.min(residuales))/(n_res*2)
+                    cantidad_de_suavizado = st.gaussian_kde(residuales).silverman_factor()
                     new_res = np.random.choice(residuales,size = n_res,replace = True)
-                    new_res += np.random.random(size = n_res)*smooth_degree - 0.5*smooth_degree
+                    new_res += np.random.normal(size = n_res)*cantidad_de_suavizado
                     return  new_res
                         
             else: # Bootstrap no paramétrico
@@ -226,45 +275,50 @@ class Triangulo:
         
         # Iterar
         muestras = []
+        e_tri = np.zeros((n,m-1)) # Triangulo de residuales
         np.random.seed(seed)
         for b in range(n_reps):
             # Remuestrear
-            new_S = cp.deepcopy(S_fitted)
-            new_res = sampler()
-            new_S.array[indices_observado] += new_res*np.sqrt(new_S.array[indices_observado])
-            new_S.__update_df()
+            new_C = self.acumular()
+            e_tri[indices_observado] = sampler()
+            for j in range(1,m):
+                if any(new_C.array[:(n-j),j-1] < 0):
+                    print('NEGATIVO!!')
+                new_C.array[:(n-j),j] = factores[j-1]*new_C.array[:(n-j),j-1] + np.sqrt(new_C.array[:(n-j),j-1]*sigmas2[j-1])*e_tri[:(n-j),j-1]
+            # new_S.array[indices_observado] += new_res*np.sqrt(new_S.array[indices_observado]*sigmas2[indices_observado[1]])
+            new_C.__update_df()
             # Calcular y guardar totales
-            tots = new_S.totales_año_siniestro(return_series = False)
+            tots = new_C.totales_año_siniestro(retornar_series = False)
             muestras += [tots]
             # Reportar progreso
             eq_fill = np.floor(ancho_barra*(b+1)/n_reps)
             print('[',''.join(['=']*int(eq_fill)),''.join([' ']*int(ancho_barra - eq_fill)),'] ',b+1,'/',n_reps,end = '\r',sep = '')
         
-        # Muestras
-        muestras = np.array(muestras)
-        totales = np.sum(muestras,axis = 1)
+        print()
 
-        # Calcular cuantiles 1-alpha
-        uppers = np.quantile(muestras,q = 1-alpha,
-                             axis = 1)
-        upper_total = np.quantile(totales,q = 1-alpha)
+        if retornar_muestras:
+            return np.array(muestras)
+        else:
+            muestras = np.array(muestras)
+            totales = np.sum(muestras,axis = 1)
+            # Calcular cuantiles 1-alpha
+            uppers = np.quantile(muestras,q = 1-alpha,
+                                axis = 0)
+            upper_total = np.quantile(totales,q = 1-alpha)
 
-        # Organizar resultados
-        est_puntual = list(self.totales_año_siniestro(return_series=False))
-        est_puntual += [sum(est_puntual)]
-        est_superior = list(uppers) + [upper_total]
-        indice = pd.Index(self.años_siniestro + ['Total'],dtype = str,name = 'Año Siniestro')
-        resultados = pd.DataFrame({'Estimación Puntual' : est_puntual,
-                                   'Límite Superior' : est_superior},
-                                   index = indice)
+            # Organizar resultados
+            est_puntual = list(self.totales_año_siniestro(retornar_series=False))
+            est_puntual += [sum(est_puntual)]
+            est_superior = list(uppers) + [upper_total]
+            indice = pd.Index(self.años_siniestro + ['Total'],
+                            dtype = str,name = 'Año Siniestro')
+            resultados = pd.DataFrame({'Estimación Puntual' : est_puntual,
+                                    'Límite Superior' : est_superior},
+                                    index = indice)
         
-        return resultados
+            return resultados
 
 
-    
-    # Mack: https://actuaries.asn.au/Library/accomp04papergerigk.pdf
-    def mack(self,alpha = 0.05):
-        return 0
 
         
 
