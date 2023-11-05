@@ -97,10 +97,55 @@ tr.totales_año_siniestro(retornar_series=False))).T
 
 tr.bootstrap(n_reps=500)
 tr.bootstrap(n_reps=500,suavizado=True)
-tr.bootstrap(n_reps=500,parametric=True)
-tr.bootstrap(n_reps=500,parametric=True,parametric_distribution='t')
+tr.bootstrap(n_reps=500,parametrico=True)
+tr.bootstrap(n_reps=500,parametrico=True,distribucion_parametrica='t')
 
 ## Mack
+
+
+#-----------------------------------------------------------------------
+## Tabla 1: Mack (1993) https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=c449e39e64fd29b9aac7dd9266b841aa7ebc17ac
+
+import IBNR
+import numpy as np
+import pandas as pd
+
+
+tab1 = [
+[357848, 1124788, 1735330, 2218270, 2745596, 3319994, 3466336, 3606286, 3833515, 3901463],
+[352118, 1236139, 2170033, 3353322, 3799067, 4120063, 4647867, 4914039, 5339085, 0],
+[290507, 1292306, 2218525, 3235179, 3985995, 4132918, 4628910, 4909315, 0, 0],
+[310608, 1418858, 2195047, 3757447, 4029929, 4381982, 4588268, 0, 0, 0],
+[443160, 1136350, 2128333, 2897821, 3402672, 3873311, 0, 0, 0, 0],
+[396132, 1333217, 2180715, 2985752, 3691712, 0, 0, 0, 0, 0],
+[440832, 1288463, 2419861, 3483130, 0, 0, 0, 0, 0, 0],
+[359480, 1421128, 2864498, 0, 0, 0, 0, 0, 0, 0],
+[376686, 1363294, 0, 0, 0, 0, 0, 0, 0, 0],
+[344014, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+]
+
+tr_acumulado = IBNR.Triangulo(triangulo = np.array(tab1),
+                              años_desarrollo=range(1,11),
+                              años_siniestro=range(1,11),tipo='Conteos')
+
+tr = tr_acumulado.desacumular()
+
+tr.heat_plot()
+tr.line_plot()
+
+tr.factores_desarrollo()
+np.array(tr.varianzas())/1000
+
+reserva = tr.totales_año_siniestro() - np.sum(tr.array,axis = 1)
+reserva/1000
+np.sum(reserva)/1000
+
+samps = tr.bootstrap(retornar_muestras=True)
+(np.std(samps,axis = 0,ddof = 1)/reserva)*100
+
+
+
+
 
 
 
