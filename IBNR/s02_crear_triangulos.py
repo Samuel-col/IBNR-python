@@ -13,36 +13,77 @@ class Triangulo: # https://alejandria.poligran.edu.co/bitstream/handle/10823/651
     # Creación -----------------------------------------------
     # --------------------------------------------------------
 
-    def __init__(self,df,col_f_siniestro,
-                col_f_desarrollo,col_valor = None):
+    def __init__(self,siniestros = None,
+                 triangulo = None,
+                 años_siniestro = None,años_desarrollo = None,
+                 col_f_siniestro = None,col_f_desarrollo = None,
+                 col_valor = None,tipo = None):
 
-        # Año de siniestro
-        df['Año Siniestro'] = pd.to_datetime(
-            df[col_f_siniestro]
-        ).dt.year
+        if siniestros is None:
+            if triangulo is None:
+                print('Se debe pasar el DataFrame siniestros o el array triangulo.')
+                ValueError
+            if type(triangulo) is not np.ndarray:
+                print('triangulo debe ser de tipo array.')
+                ValueError
+            if (años_siniestro is None) or (años_desarrollo is None):
+                    print('Cuando se suministra el argumento triangulo también se deben suministrar años_siniestro, años_desarrollo y tipo (Conteos o Costos).')
+                    ValueError
+            if tipo not in ['Conteos','Costos']:
+                print('tipo debe ser Coteos o Costos.')
+                ValueError
+            
+            self.array = triangulo
+            self.años_siniestro = list(años_siniestro)
+            self.años_desarrollo = list(años_desarrollo)
+            self.tipo = tipo
 
-        # Año de desarrollo
-        df['Año Desarrollo'] = np.floor(pd.to_timedelta(
-            df[col_f_desarrollo] - df[col_f_siniestro]
-        ).dt.days/364.242).astype('int')
-
-        # Crear tabla de contingencia
-        if col_valor is None:
-            self.tipo = 'Conteos'
-            tab = pd.crosstab(df['Año Siniestro'],
-                df['Año Desarrollo'])
+            # Construir DataFrame
+            indices = pd.Index(años_siniestro,dtype = np.int32,name = 'Año Siniestro')
+            columnas = pd.Index(años_desarrollo,dtype = np.int32, name = 'Año Desarrollo')
+            self.df = pd.DataFrame(data = triangulo,
+                                    index = indices,
+                                    columns = columnas)
         else:
-            self.tipo = 'Costos'
-            tab = pd.crosstab(df['Año Siniestro'],
-                df['Año Desarrollo'],
-                values = df[col_valor],
-                aggfunc = 'sum')
-            tab.replace(np.nan,0,inplace = True)
+            if triangulo is not None:
+                print('Se pasaron el DataFrame siniestros y el array triangulo, se usará el primero.')
+            
+            if type(siniestros) is not pd.DataFrame:
+                print('siniestros debe ser de tipo DataFrame.')
+            
+            if (col_f_siniestro is None) or (col_f_desarrollo is None):
+                print('Cuando se suministra el argumento siniestros también se deben suministrar col_f_siniestros, que es el nombre de la columna del DataFrame siniestros que contiene las fechas de siniestros, y col_f_desarrollo, que es el nombre de la columna del DataFrame que contiene las fechas de desarrollo; opcionalmente, se puede suministrar col_valor, que es el nomber de la columna que contiene el valor pagado por cada siniestro.')
+                
+            # Año de siniestro
+            siniestros['Año Siniestro'] = pd.to_datetime(
+                siniestros[col_f_siniestro]
+            ).dt.year
+
+            # Año de desarrollo
+            siniestros['Año Desarrollo'] = np.floor(pd.to_timedelta(
+                siniestros[col_f_desarrollo] - siniestros[col_f_siniestro]
+            ).dt.days/364.242).astype('int')
+
+            # Crear tabla de contingencia
+            if col_valor is None:
+                self.tipo = 'Conteos'
+                tab = pd.crosstab(siniestros['Año Siniestro'],
+                    siniestros['Año Desarrollo'])
+            else:
+                self.tipo = 'Costos'
+                tab = pd.crosstab(siniestros['Año Siniestro'],
+                    siniestros['Año Desarrollo'],
+                    values = siniestros[col_valor],
+                    aggfunc = 'sum')
+                tab.replace(np.nan,0,inplace = True)
+
+            self.df = tab
+            self.años_siniestro = list(tab.index)
+            self.años_desarrollo = list(tab.columns)
+            self.array = np.array(tab)
+                
+
         
-        self.df = tab
-        self.años_siniestro = list(tab.index)
-        self.años_desarrollo = list(tab.columns)
-        self.array = np.array(tab)
     
     # --------------------------------------------------------
     # Funciones internas -------------------------------------
@@ -129,30 +170,32 @@ class Triangulo: # https://alejandria.poligran.edu.co/bitstream/handle/10823/651
         'Año Desarrollo',self.tipo,color = 'Año Siniestro',
         group = 'Año Siniestro') + p9.geom_line() + p9.labs(
             title = titulo) + p9.theme_light()
-
+    
     # Acumular
     def acumular(self,limpiar_tri_inferior = True):
-        t = cp.deepcopy(self)
-        for i in t.años_desarrollo[1:]:
-            t.df[i] += t.df[i-1]
-        t.__update()
+        C = cp.deepcopy(self)
+        m = C.array.shape[1]
+        for j in range(1,m):
+            C.array[:,j] += C.array[:,j-1]
+        C.__update_df()
         if limpiar_tri_inferior:
-            t.__limpiar_tri_inf()
-        return t
-    
+            C.__limpiar_tri_inf()
+        return C
+
     # Desacumular
     def desacumular(self,limpiar_tri_inferior = True):
-        t = cp.deepcopy(self)
-        for i in t.años_desarrollo[1:]:
-            j = max(t.años_desarrollo) - i
-            t.df[j+1] -= t.df[j]
-        t.__update()
+        S = cp.deepcopy(self)
+        m = S.array.shape[1]
+        for i in range(1,m):
+            j = m - i
+            S.array[:,j] -= S.array[:,j-1]
+        S.__update_df()
         if limpiar_tri_inferior:
-            t.__limpiar_tri_inf()
-        return t
+            S.__limpiar_tri_inf()
+        return S
 
     # --------------------------------------------------------
-    # Chain-Ladder y Mack ------------------------------------
+    # Chain-Ladder  ------------------------------------------
     # --------------------------------------------------------
 
     # Factores de desarrollo: https://actuaries.asn.au/Library/accomp04papergerigk.pdf
@@ -172,8 +215,8 @@ class Triangulo: # https://alejandria.poligran.edu.co/bitstream/handle/10823/651
         C = self.acumular()
         a = C.array
         n, m = a.shape
-        sigmas = [np.sum(a[:(n-k-1),k]*(a[:(n-k-1),k+1]/a[:(n-k-1),k] - factores[k])**2)/(n-k-2) for k in range(m-1)]
-        # sigmas += [min(sigmas[m-3]**2/sigmas[m-4], sigmas[m-3], sigmas[m-4])]
+        sigmas = [np.sum(a[:(n-k-1),k]*(a[:(n-k-1),k+1]/a[:(n-k-1),k] - factores[k])**2)/(n-k-2) for k in range(m-2)]
+        sigmas += [min(sigmas[m-3]**2/sigmas[m-4], sigmas[m-3], sigmas[m-4])]
         return sigmas
 
     # Llenar triangulo
@@ -198,8 +241,14 @@ class Triangulo: # https://alejandria.poligran.edu.co/bitstream/handle/10823/651
         else:
             return tots
         
-    # Mack: https://actuaries.asn.au/Library/accomp04papergerigk.pdf
-    def mack(self,alpha = 0.05): # PENDIENTE
+    # Std Error: https://actuaries.asn.au/Library/accomp04papergerigk.pdf
+    # Mack: https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=c449e39e64fd29b9aac7dd9266b841aa7ebc17ac
+    # Mack: https://core.ac.uk/reader/132270100#page=97
+    def __error_estandar(self,): # PENDIENTE
+        return 0
+    
+    def limite_superior_totales(self,alpha = 0.05, # PENDIENTE
+                                distribucion_del_cuantil = 't'):
         return 0
     
     # --------------------------------------------------------
@@ -232,7 +281,7 @@ class Triangulo: # https://alejandria.poligran.edu.co/bitstream/handle/10823/651
 
     # Bootstrap: https://www.mathworks.com/help/risk/bootstrap-using-chain-ladder-method.html
     def bootstrap(self,n_reps = 5000,parametrico = False,
-                  distribucion_parametrica = 'Normal',
+                  distribucion_parametrica = 't',
                   suavizado = True, alpha = 0.05,
                   ancho_barra = 50,seed = 1,
                   retornar_muestras = False):
@@ -288,11 +337,14 @@ class Triangulo: # https://alejandria.poligran.edu.co/bitstream/handle/10823/651
             # new_S.array[indices_observado] += new_res*np.sqrt(new_S.array[indices_observado]*sigmas2[indices_observado[1]])
             new_C.__update_df()
             # Calcular y guardar totales
-            tots = new_C.totales_año_siniestro(retornar_series = False)
+            tots = new_C.desacumular().totales_año_siniestro(retornar_series = False)
             muestras += [tots]
             # Reportar progreso
-            eq_fill = np.floor(ancho_barra*(b+1)/n_reps)
-            print('[',''.join(['=']*int(eq_fill)),''.join([' ']*int(ancho_barra - eq_fill)),'] ',b+1,'/',n_reps,end = '\r',sep = '')
+            if (ancho_barra*(b+1) % n_reps) == 0:
+                eq_fill = int(ancho_barra*(b+1)/n_reps)
+                print('[',''.join(['=']*eq_fill),
+                      ''.join([' ']*(ancho_barra - eq_fill)),
+                      '] ',b+1,'/',n_reps,end = '\r',sep = '')
         
         print()
 
@@ -316,9 +368,25 @@ class Triangulo: # https://alejandria.poligran.edu.co/bitstream/handle/10823/651
                                     'Límite Superior' : est_superior},
                                     index = indice)
         
-            return resultados
+            return resultados  
 
-
-
+    # Reserva
+    def reserva(self,metodo = 'Bootstrap',**kwargs):
+        # Validación
+        if metodo not in ['Mack','Bootstrap']:
+            print('metodo debe ser Mack o Bootstrap')
+            ValueError
+        # Totales observado
+        observado = list(np.sum(self.array,dim = 1))
+        observado += [sum(observado)]
+        # Estimación
+        if metodo == 'Mack':
+            estimado = self.limite_superior_totales()
+            # PENDIENTE
+        else:
+            estimado = self.bootstrap(**kwargs)
+        # Reemplazar valores
+        estimado['Estimación Puntual'] -= np.array(observado)
+        estimado['Límite Superior'] -= np.array(observado)
+        return estimado      
         
-
