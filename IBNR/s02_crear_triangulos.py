@@ -164,12 +164,14 @@ class Triangulo: # https://alejandria.poligran.edu.co/bitstream/handle/10823/651
     
     def line_plot(self,titulo = "Evolución de los Siniestros"):
         tmp_tab = self.formato_largo().copy()
+        minimo, maximo = np.min(tmp_tab['Año Siniestro']) + np.min(tmp_tab['Año Desarrollo']), np.max(tmp_tab['Año Desarrollo'] + np.min(tmp_tab['Año Siniestro']))
         tmp_tab['Año Desarrollo'] += tmp_tab['Año Siniestro']
         tmp_tab['Año Siniestro'] = pd.Categorical(tmp_tab['Año Siniestro'])
         return p9.ggplot(tmp_tab) + p9.aes(
         'Año Desarrollo',self.tipo,color = 'Año Siniestro',
         group = 'Año Siniestro') + p9.geom_line() + p9.labs(
-            title = titulo) + p9.theme_light()
+            title = titulo,x = 'Año de reporte') + p9.theme_light(
+            ) + p9.xlim(minimo,maximo)
     
     # Acumular
     def acumular(self,limpiar_tri_inferior = True):
@@ -418,7 +420,7 @@ class Triangulo: # https://alejandria.poligran.edu.co/bitstream/handle/10823/651
             return resultados  
 
     # Reserva
-    def reserva(self,metodo = 'Bootstrap',**kwargs):
+    def reserva(self,metodo = 'Mack',**kwargs):
         # Validación
         if metodo not in ['Mack','Bootstrap']:
             print('metodo debe ser Mack o Bootstrap')
