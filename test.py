@@ -136,6 +136,8 @@ tr.line_plot()
 tr.factores_desarrollo()
 np.array(tr.varianzas())/1000
 
+tr.totales_año_siniestro()
+
 reserva = tr.totales_año_siniestro() - np.sum(tr.array,axis = 1)
 reserva/1000
 np.sum(reserva)/1000
@@ -143,8 +145,18 @@ np.sum(reserva)/1000
 samps = tr.bootstrap(retornar_muestras=True)
 (np.std(samps,axis = 0,ddof = 1)/reserva)*100
 
+tr.fill().acumular(limpiar_tri_inferior=False).array[:,9]**2
+
+tr.limite_superior_totales()/1000000
+tr.bootstrap()/1000000
+tr.bootstrap(parametrico=True,distribucion_parametrica='Normal')/1000000
+
+tr.reserva(metodo='Mack')
+
+np.array(tr.limite_superior_totales())[:-1]/reserva
 
 
+np.array(tr.varianzas())/np.array(tr.factores_desarrollo())**2
 
 
 
