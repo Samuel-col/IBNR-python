@@ -156,9 +156,12 @@ tr.heat_plot()
 tr.line_plot()
 ```
 
+    C:\Users\SHSANCHE\AppData\Roaming\Python\Python311\site-packages\plotnine\geoms\geom_path.py:98: PlotnineWarning: geom_path: Removed 9 rows containing missing values.
+    
+
 
     
-![png](README_files/README_10_0.png)
+![png](README_files/README_10_1.png)
     
 
 
@@ -275,7 +278,7 @@ tr.totales_año_siniestro()
 
 
 
-## Métodos Estocásticos
+## Métodos estocásticos
 
 ### Mack
 
@@ -1164,9 +1167,12 @@ res_tr.heat_plot()
 res_tr.line_plot()
 ```
 
+    C:\Users\SHSANCHE\AppData\Roaming\Python\Python311\site-packages\plotnine\geoms\geom_path.py:98: PlotnineWarning: geom_path: Removed 17 rows containing missing values.
+    
+
 
     
-![png](README_files/README_36_0.png)
+![png](README_files/README_36_1.png)
     
 
 
@@ -1214,12 +1220,14 @@ st.kstest(res,st.norm.cdf).pvalue
 
 ```python
 # Prueba de distribución t
-st.kstest(res,st.norm.cdf).pvalue
+n_res = len(res)
+n_par = 2*(len(tr.años_desarrollo) - 1)
+st.kstest(res,lambda x: st.t.cdf(x,df = n_res - n_par)).pvalue
 ```
 
 
 
 
-    0.8092109489011762
+    0.8355470703736473
 
 
