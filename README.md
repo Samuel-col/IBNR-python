@@ -1219,6 +1219,19 @@ st.kstest(res,st.norm.cdf).pvalue
 
 
 ```python
+# Otra prueba de normalidad
+st.shapiro(res).pvalue
+```
+
+
+
+
+    0.26435425877571106
+
+
+
+
+```python
 # Prueba de distribución t
 n_res = len(res)
 n_par = 2*(len(tr.años_desarrollo) - 1)
