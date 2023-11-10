@@ -244,12 +244,54 @@ class Triangulo: # https://alejandria.poligran.edu.co/bitstream/handle/10823/651
     # Std Error: https://actuaries.asn.au/Library/accomp04papergerigk.pdf
     # Mack: https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=c449e39e64fd29b9aac7dd9266b841aa7ebc17ac
     # Mack: https://core.ac.uk/reader/132270100#page=97
-    def __error_estandar(self,): # PENDIENTE
-        return 0
+    def __errores_estandar(self):
+        # Extraer parámetros necesarios
+        n, m = self.array.shape
+        C = self.acumular().array
+        C_hat = self.fill().acumular(limpiar_tri_inferior=False).array
+        factores = self.factores_desarrollo()
+        sigmas2 = self.varianzas()
+        # Calcular errores estándar de C_in (Mack, 1993, Teorema 3)
+        rmse_totales = np.zeros((n+1,),dtype = np.uint64)
+        for i in range(1,n):
+            sumatoria = [sigmas2[k]/(factores[k]**2)*(1/C_hat[i,k] + 1/np.sum(C[:(m-k),k]))  for k in range(m-i-1,m-1)]
+            rmse_totales[i] = C_hat[i,m-1]*np.sqrt(np.sum(sumatoria))
+        # Calcular error estándar de C_. (Mack, 1993, Corolario del Teorema 3)
+        mse_R = 0
+        for i in range(1,n):
+            sumatoria = [sigmas2[k]/(factores[k]**2)/np.sum(C[:(m-k),k]) for k in range(m-i-1,m-1)]
+            mse_R += rmse_totales[i]**2 + 2*C_hat[i,m-1]*(np.sum(C_hat[(i+1):,m-1])*np.sum(sumatoria))
+        rmse_totales[n] = np.sqrt(mse_R)
+        
+        return list(rmse_totales)
     
+    # Límite superior a partir de los errores estándar
     def limite_superior_totales(self,alpha = 0.05, # PENDIENTE
-                                distribucion_del_cuantil = 't'):
-        return 0
+                                distribucion_del_cuantil = 'Normal'):
+        # Extraer valores
+        rmse = self.__errores_estandar()
+        totales = list(self.totales_año_siniestro())
+        totales += [np.sum(totales)]
+        
+        # Crear DataFrame de resultados
+        indice = pd.Index(self.años_siniestro + ['Total'],
+                            dtype = str,name = 'Año Siniestro')
+        resultados = pd.DataFrame({'Estimación Puntual' : totales,
+                                    'Error Estándar' : rmse},
+                                    index = indice)
+        
+        # Calcular cuantil
+        if distribucion_del_cuantil == 'Normal':
+            cuantil = st.norm.isf(alpha)
+        elif distribucion_del_cuantil == 't':
+            cuantil = st.t.isf(alpha)
+        else:
+            print('distribucion_del_cuantil debe ser Normal o t.')
+            ValueError
+
+        # Calcular límite superior
+        resultados['Límite Superior'] = resultados['Estimación Puntual'] + cuantil*resultados['Error Estándar']
+        return resultados
     
     # --------------------------------------------------------
     # Bootstrap ----------------------------------------------
@@ -357,14 +399,19 @@ class Triangulo: # https://alejandria.poligran.edu.co/bitstream/handle/10823/651
             uppers = np.quantile(muestras,q = 1-alpha,
                                 axis = 0)
             upper_total = np.quantile(totales,q = 1-alpha)
+            # Calcular errores estándar
+            se = np.std(muestras,ddof=1,axis = 0)
+            se_total = np.std(totales,ddof=1)
 
             # Organizar resultados
             est_puntual = list(self.totales_año_siniestro(retornar_series=False))
             est_puntual += [sum(est_puntual)]
             est_superior = list(uppers) + [upper_total]
+            se = list(se) + [se_total]
             indice = pd.Index(self.años_siniestro + ['Total'],
                             dtype = str,name = 'Año Siniestro')
             resultados = pd.DataFrame({'Estimación Puntual' : est_puntual,
+                                       'Error Estándar' : se,
                                     'Límite Superior' : est_superior},
                                     index = indice)
         
@@ -377,12 +424,11 @@ class Triangulo: # https://alejandria.poligran.edu.co/bitstream/handle/10823/651
             print('metodo debe ser Mack o Bootstrap')
             ValueError
         # Totales observado
-        observado = list(np.sum(self.array,dim = 1))
+        observado = list(np.sum(self.array,axis = 1))
         observado += [sum(observado)]
         # Estimación
         if metodo == 'Mack':
-            estimado = self.limite_superior_totales()
-            # PENDIENTE
+            estimado = self.limite_superior_totales(**kwargs)
         else:
             estimado = self.bootstrap(**kwargs)
         # Reemplazar valores
