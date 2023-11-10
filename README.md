@@ -153,15 +153,12 @@ tr.heat_plot()
 
 ```python
 # Cantidad de siniestros reportados por año según el año de origen
-tr.line_plot()
+tr.acumular().line_plot()
 ```
 
-    C:\Users\SHSANCHE\AppData\Roaming\Python\Python311\site-packages\plotnine\geoms\geom_path.py:98: PlotnineWarning: geom_path: Removed 9 rows containing missing values.
-    
-
 
     
-![png](README_files/README_10_1.png)
+![png](README_files/README_10_0.png)
     
 
 
@@ -1167,12 +1164,9 @@ res_tr.heat_plot()
 res_tr.line_plot()
 ```
 
-    C:\Users\SHSANCHE\AppData\Roaming\Python\Python311\site-packages\plotnine\geoms\geom_path.py:98: PlotnineWarning: geom_path: Removed 17 rows containing missing values.
-    
-
 
     
-![png](README_files/README_36_1.png)
+![png](README_files/README_36_0.png)
     
 
 
