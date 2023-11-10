@@ -1,6 +1,14 @@
 # Comparación de Métodos Estocásticos de estimación de IBNR
 
+Este repositorio contiene una librería que estima los IBNR por el método Chain-Ladder de manera determinística y cinco metodologías para hacerlo de manera estocástica:
 
+ - [Mack (1993)](https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=c449e39e64fd29b9aac7dd9266b841aa7ebc17ac)
+ - Bootstrap paramétrico normal
+ - Boostrap paramétrico t
+ - Boostrap no parmétrico
+ - Boostrap no paramétrico suavizado
+
+Además, en el presente MARKDOWN se implementa la librería para comparar los resultados arrojados por los cinco métodos previamente mencionados.
 
 ## Carga de datos
 
@@ -131,7 +139,7 @@ tr.heat_plot()
 
 
     
-![png](comparativa_files/comparativa_9_0.png)
+![png](README_files/README_9_0.png)
     
 
 
@@ -150,7 +158,7 @@ tr.line_plot()
 
 
     
-![png](comparativa_files/comparativa_10_0.png)
+![png](README_files/README_10_0.png)
     
 
 
@@ -393,8 +401,7 @@ est_bt_par_norm = tr.bootstrap(parametrico=True,distribucion_parametrica='Normal
 est_bt_par_norm
 ```
 
-    [==================================================] 5000/5000
-
+    [==================================================] 5000/5000
 
 
 
@@ -509,8 +516,7 @@ est_bt_par_t = tr.bootstrap(parametrico=True)
 est_bt_par_t
 ```
 
-    [==================================================] 5000/5000
-
+    [==================================================] 5000/5000
 
 
 
@@ -627,8 +633,7 @@ est_bt_npar = tr.bootstrap(suavizado=False)
 est_bt_npar
 ```
 
-    [==================================================] 5000/5000
-
+    [==================================================] 5000/5000
 
 
 
@@ -743,8 +748,7 @@ est_bt_npar_suav = tr.bootstrap()
 est_bt_npar_suav
 ```
 
-    [==================================================] 5000/5000
-
+    [==================================================] 5000/5000
 
 
 
@@ -1018,7 +1022,7 @@ plt.show()
 
 
     
-![png](comparativa_files/comparativa_31_0.png)
+![png](README_files/README_31_0.png)
     
 
 
@@ -1144,7 +1148,7 @@ res_tr.heat_plot()
 
 
     
-![png](comparativa_files/comparativa_35_0.png)
+![png](README_files/README_35_0.png)
     
 
 
@@ -1162,7 +1166,7 @@ res_tr.line_plot()
 
 
     
-![png](comparativa_files/comparativa_36_0.png)
+![png](README_files/README_36_0.png)
     
 
 
@@ -1190,7 +1194,7 @@ plt.show()
 
 
     
-![png](comparativa_files/comparativa_37_0.png)
+![png](README_files/README_37_0.png)
     
 
 
@@ -1219,8 +1223,3 @@ st.kstest(res,st.norm.cdf).pvalue
     0.8092109489011762
 
 
-
-
-```python
-
-```
