@@ -156,22 +156,29 @@ class Triangulo: # https://alejandria.poligran.edu.co/bitstream/handle/10823/651
         return S
 
     # Gráficos
-    def heat_plot(self,titulo = "Triángulo de Siniestros",separacion = 0.05):
-        return p9.ggplot(self.formato_largo()) + p9.aes(
+    def heat_plot(self,titulo = "Triángulo de Siniestros",separacion = 0.05,
+                  solo_observado = True):
+        tmp_tab = self.formato_largo().copy()
+        if solo_observado:
+            tmp_tab = tmp_tab[tmp_tab['Año Siniestro']  + tmp_tab['Año Desarrollo'] <= 1 + self.array.shape[0]]
+        return p9.ggplot(tmp_tab) + p9.aes(
     'Año Desarrollo','Año Siniestro',fill = self.tipo) + p9.geom_tile(
         p9.aes(width= 1 - separacion, height= 1 - separacion)) + p9.scale_y_reverse() + p9.theme_light() + p9.labs(
             title = titulo)
     
-    def line_plot(self,titulo = "Evolución de los Siniestros"):
+    def line_plot(self,titulo = "Evolución de los Siniestros",
+                  solo_observado = True):
         tmp_tab = self.formato_largo().copy()
-        minimo, maximo = np.min(tmp_tab['Año Siniestro']) + np.min(tmp_tab['Año Desarrollo']), np.max(tmp_tab['Año Desarrollo'] + np.min(tmp_tab['Año Siniestro']))
-        tmp_tab['Año Desarrollo'] += tmp_tab['Año Siniestro']
+        if solo_observado:
+            tmp_tab = tmp_tab[tmp_tab['Año Siniestro']  + tmp_tab['Año Desarrollo'] <= 1 + self.array.shape[0]]
+        # minimo, maximo = np.min(tmp_tab['Año Siniestro']) + np.min(tmp_tab['Año Desarrollo']), np.max(tmp_tab['Año Desarrollo'] + np.min(tmp_tab['Año Siniestro']))
+        # tmp_tab['Año Desarrollo'] += tmp_tab['Año Siniestro']
         tmp_tab['Año Siniestro'] = pd.Categorical(tmp_tab['Año Siniestro'])
         return p9.ggplot(tmp_tab) + p9.aes(
         'Año Desarrollo',self.tipo,color = 'Año Siniestro',
-        group = 'Año Siniestro') + p9.geom_line() + p9.labs(
-            title = titulo,x = 'Año de reporte') + p9.theme_light(
-            ) + p9.xlim(minimo,maximo)
+        group = 'Año Siniestro') + p9.geom_line() + p9.geom_point() + p9.labs(
+            title = titulo) + p9.theme_light(
+            )# + p9.xlim(minimo,maximo)
     
     # Acumular
     def acumular(self,limpiar_tri_inferior = True):
@@ -242,7 +249,30 @@ class Triangulo: # https://alejandria.poligran.edu.co/bitstream/handle/10823/651
             return pd.Series(tots,index = indice,name = self.tipo)
         else:
             return tots
+    
+    # Validar linealidad
+    def grafico_linealidad(self):
+        a = self.array
+        n, m = a.shape
+        x_i = []
+        y_i = []
+        año_siniestro = []
+        for i in range(n-2):
+            x_i += list(a[:(n-i-1),i])
+            y_i += list(a[:(n-i-1),i+1])
+            año_siniestro += [str(i+1)]*(n-i-1)
+        df = pd.DataFrame({'C_.,k' : x_i,
+                           'C_.,k+1' : y_i,
+                           'k' : año_siniestro})
+        return p9.ggplot(df,p9.aes(x = 'C_.,k',y = 'C_.,k+1',color = 'k')) + p9.geom_point(
+        ) + p9.geom_smooth(method = 'lm',se=False,formula = 'y~0+x') + p9.labs(
+            title = 'Verificación de la linealidad') + p9.theme_light()
         
+
+    # --------------------------------------------------------
+    # Mack  --------------------------------------------------
+    # --------------------------------------------------------
+
     # Std Error: https://actuaries.asn.au/Library/accomp04papergerigk.pdf
     # Mack: https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=c449e39e64fd29b9aac7dd9266b841aa7ebc17ac
     # Mack: https://core.ac.uk/reader/132270100#page=97
