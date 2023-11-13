@@ -129,6 +129,32 @@ tr.apply(np.log)
 tr.to_excel('triangulo_acumulado_mack_1993.xlsx')
 ```
 
+
+```python
+# Exportar a LaTeX
+print(tr.df.to_latex())
+```
+
+    \begin{tabular}{lrrrrrrrrrr}
+    \toprule
+    Año Desarrollo & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 & 10 \\
+    Año Siniestro &  &  &  &  &  &  &  &  &  &  \\
+    \midrule
+    1 & 357848 & 766940 & 610542 & 482940 & 527326 & 574398 & 146342 & 139950 & 227229 & 67948 \\
+    2 & 352118 & 884021 & 933894 & 1183289 & 445745 & 320996 & 527804 & 266172 & 425046 & 0 \\
+    3 & 290507 & 1001799 & 926219 & 1016654 & 750816 & 146923 & 495992 & 280405 & 0 & 0 \\
+    4 & 310608 & 1108250 & 776189 & 1562400 & 272482 & 352053 & 206286 & 0 & 0 & 0 \\
+    5 & 443160 & 693190 & 991983 & 769488 & 504851 & 470639 & 0 & 0 & 0 & 0 \\
+    6 & 396132 & 937085 & 847498 & 805037 & 705960 & 0 & 0 & 0 & 0 & 0 \\
+    7 & 440832 & 847631 & 1131398 & 1063269 & 0 & 0 & 0 & 0 & 0 & 0 \\
+    8 & 359480 & 1061648 & 1443370 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+    9 & 376686 & 986608 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+    10 & 344014 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+    \bottomrule
+    \end{tabular}
+    
+    
+
 ## Gráficos descriptivos
 
 
@@ -139,7 +165,7 @@ tr.heat_plot()
 
 
     
-![png](README_files/README_9_0.png)
+![png](README_files/README_10_0.png)
     
 
 
@@ -158,7 +184,7 @@ tr.acumular().line_plot()
 
 
     
-![png](README_files/README_10_0.png)
+![png](README_files/README_11_0.png)
     
 
 
@@ -252,9 +278,44 @@ tr.fill()
 
 
 ```python
+tr.fill().heat_plot(solo_observado=False)
+```
+
+
+    
+![png](README_files/README_16_0.png)
+    
+
+
+
+
+
+    <Figure Size: (640 x 480)>
+
+
+
+
+```python
+tr.fill().acumular(limpiar_tri_inferior=False).line_plot(solo_observado=False)
+```
+
+
+    
+![png](README_files/README_17_0.png)
+    
+
+
+
+
+
+    <Figure Size: (640 x 480)>
+
+
+
+
+```python
 # Calcular estimación del total por año de desarrollo
 tr.totales_año_siniestro()
-
 ```
 
 
@@ -1022,7 +1083,7 @@ plt.show()
 
 
     
-![png](README_files/README_31_0.png)
+![png](README_files/README_34_0.png)
     
 
 
@@ -1142,13 +1203,12 @@ tr.reserva(metodo = 'Mack')
 
 
 ```python
-res_tr = tr.residuales(retornar_triangulo=True) # Calcular triángulo de residuales
-res_tr.heat_plot()
+tr.grafico_linealidad()
 ```
 
 
     
-![png](README_files/README_35_0.png)
+![png](README_files/README_38_0.png)
     
 
 
@@ -1161,12 +1221,31 @@ res_tr.heat_plot()
 
 
 ```python
-res_tr.line_plot()
+res_tr = tr.residuales(retornar_triangulo=True) # Calcular triángulo de residuales
+res_tr.heat_plot(titulo = 'Triángulo de Residuales')
 ```
 
 
     
-![png](README_files/README_36_0.png)
+![png](README_files/README_39_0.png)
+    
+
+
+
+
+
+    <Figure Size: (640 x 480)>
+
+
+
+
+```python
+res_tr.line_plot(titulo = 'Evolución de los Residuales')
+```
+
+
+    
+![png](README_files/README_40_0.png)
     
 
 
@@ -1194,7 +1273,7 @@ plt.show()
 
 
     
-![png](README_files/README_37_0.png)
+![png](README_files/README_41_0.png)
     
 
 
